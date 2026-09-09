@@ -1,16 +1,19 @@
 {
   "name": "hianime-api",
   "version": "1.0.0",
+  "bin": {
+    "hianime-api": "./index.js"
+  },
   "main": "./src/app.js",
+  "module": "./src/app.js",
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "node --watch server.js",
-    "start": "node server.js",
-    "vercel-build": "echo 'Build complete'"
+    "dev": "node --watch index.js",
+    "start": "node index.js",
+    "test": "node index.js"
   },
   "dependencies": {
-    "@hono/node-server": "^1.13.7",
     "@hono/swagger-ui": "^0.5.2",
     "@upstash/redis": "^1.35.0",
     "axios": "^1.7.7",
@@ -22,8 +25,5 @@
     "m3u8-parser": "^7.2.0",
     "node-cache": "^5.1.2",
     "uuid": "^11.1.0"
-  },
-  "engines": {
-    "node": ">=18.x"
   }
 }

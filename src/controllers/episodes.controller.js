@@ -1,5 +1,5 @@
 import { validationError } from '../utils/errors.js';
-import { cfFetch } from '../services/cfBypass.js';
+import { cfFetch, cfFetchAjax } from '../services/cfBypass.js';
 import { load } from 'cheerio';
 
 const episodesController = async (c) => {
@@ -7,25 +7,38 @@ const episodesController = async (c) => {
   if (!id) throw new validationError('id is required');
 
   try {
-    // hianime.ad: episodes list is embedded in /watch/{slug}/ep-1 page
-    const html = await cfFetch(`/watch/${id}/ep-1`);
-    const $ = load(html);
+    // Extract numeric anime ID from slug (e.g., "anime-name-1234" -> "1234")
+    const numericIdMatch = id.match(/-(\d+)$/);
+    if (!numericIdMatch) {
+      throw new validationError('Invalid anime ID format. Expected format: anime-name-1234');
+    }
+    const animeId = numericIdMatch[1];
 
+    // Fetch episodes list via AJAX endpoint
+    const ajaxData = await cfFetchAjax(`/ajax/v2/episode/list/${animeId}`, '/');
+    
+    if (!ajaxData || !ajaxData.html) {
+      throw new validationError('Failed to fetch episodes list');
+    }
+
+    const $ = load(ajaxData.html);
     const episodes = [];
-    $('.ssl-item.ep-item').each((i, el) => {
-      const href = $(el).attr('href') || '';
-      const epNum = parseInt($(el).attr('data-num'), 10) || i + 1;
-      const title = $(el).attr('title') || $(el).find('.ep-name').text().trim() || `Episode ${epNum}`;
-      const altTitle = $(el).find('.ep-name.e-dynamic-name').attr('data-jname') || null;
-      const isFiller = $(el).hasClass('ssl-item-filler');
-      // id format: anime-slug::ep=123
-      const epId = href.replace('/watch/', '').replace('?', '::');
 
-      if (epNum && href) {
+    // Parse episode items from HTML
+    $('.detail-infor-content .ss-list a').each((i, el) => {
+      const href = $(el).attr('href') || '';
+      const epNum = parseInt($(el).attr('data-number'), 10) || i + 1;
+      const title = $(el).attr('title') || $(el).text().trim() || `Episode ${epNum}`;
+      const isFiller = $(el).hasClass('ssl-item-filler');
+      
+      // Extract episode ID from href: /watch/slug?ep=123456
+      const epIdMatch = href.match(/[?&]ep=(\d+)/);
+      const epId = epIdMatch ? epIdMatch[1] : '';
+      
+      if (epNum && epId) {
         episodes.push({
           episodeNumber: epNum,
           title,
-          alternativeTitle: altTitle,
           id: epId,
           isFiller,
         });
@@ -37,7 +50,7 @@ const episodesController = async (c) => {
     return { totalEpisodes: episodes.length, episodes };
   } catch (err) {
     console.error('[episodesController]', err.message);
-    throw new validationError('make sure the id is correct. Example: /episodes/one-piece-100', { id });
+    throw new validationError('Failed to fetch episodes. Make sure the anime ID is correct.', { id, error: err.message });
   }
 };
 

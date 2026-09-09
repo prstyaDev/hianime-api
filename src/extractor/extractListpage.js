@@ -43,7 +43,9 @@ export const extractListPage = (html) => {
 
     obj.title = titleEL.text();
     obj.alternativeTitle = titleEL.attr('data-jname');
-    const idEl = titleEL.attr('href').split('/').at(-1);
+    const href = titleEL.attr('href') || '';
+    // Handle both absolute URLs (https://hianime.dk/anime-id) and relative paths (/anime-id)
+    const idEl = href.includes('://') ? href.split('/').pop() : href.split('/').at(-1);
     obj.id = idEl.includes('?ref=') ? idEl.split('?')[0] : idEl;
 
     obj.type = $(el).find('.fd-infor .fdi-item').first().text();
