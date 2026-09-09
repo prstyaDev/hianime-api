@@ -1,8 +1,8 @@
 import { validationError } from '../utils/errors.js';
-import { cfFetch } from '../services/cfBypass.js';
+import { cfFetchAjax } from '../services/cfBypass.js';
 import { load } from 'cheerio';
 
-// hianime.ad embeds servers directly in the watch page HTML
+// hianime.dk uses AJAX to load servers
 // id format: "steinsgate-3::ep=213" OR "steinsgate-3?ep=213"
 const parseId = (id) => {
   // normalize :: to ?
@@ -19,63 +19,54 @@ export const getServers = async (id) => {
   const { slug, episode } = parseId(id);
   if (!slug) throw new validationError('Invalid id format. Use: anime-slug::ep=123');
 
-  // Scrape watch page directly — hianime.ad has servers inline
-  const html = await cfFetch(`/watch/${slug}/ep-${episode}`);
-  const $ = load(html);
+  // Fetch servers via AJAX endpoint — hianime.dk loads servers dynamically
+  const data = await cfFetchAjax(`/ajax/v2/episode/servers?episodeId=${episode}`, `/watch/${slug}/ep-${episode}`);
+  
+  if (!data || !data.html) {
+    throw new validationError('Failed to fetch servers');
+  }
+  
+  const $ = load(data.html);
 
   const extractList = (selector, type) => {
     const servers = [];
-    $(selector).find('[data-video]').each((i, el) => {
-      const videoUrl = $(el).attr('data-video') || '';
-      const name = $(el).text().trim() || `HD-${i + 1}`;
-      let embedUrl = videoUrl;
-      let subtitle = null;
-      // Parse subtitle param if present
-      try {
-        const u = new URL(videoUrl.startsWith('http') ? videoUrl : 'https://hianime.ad' + videoUrl);
-        subtitle = u.searchParams.get('sub_1') || u.searchParams.get('caption_1') || null;
-        embedUrl = u.origin + u.pathname;
-      } catch {}
-      servers.push({ index: i + 1, type, name, embedUrl, subtitle });
-    });
-    // Fallback: old .server-item[data-id] format
-    if (servers.length === 0) {
-      $(selector).find('.server-item').each((i, el) => {
-        const serverId = $(el).attr('data-id');
-        const name = $(el).find('a').text().trim();
-        const serverIdx = Number($(el).attr('data-server-id')) || i + 1;
-        if (serverId || name) {
-          servers.push({ index: serverIdx, type, name, id: serverId, embedUrl: null });
+    
+    // hianime.dk AJAX format: uses .server-item with data-hash (base64 encoded URL)
+    $(selector).find('.server-item').each((i, el) => {
+      const dataHash = $(el).attr('data-hash');
+      const serverName = $(el).attr('data-server-name') || $(el).find('a').text().trim() || `Server ${i + 1}`;
+      const serverType = $(el).attr('data-type') || type;
+      
+      if (dataHash) {
+        // Decode base64 hash to get embed URL
+        let embedUrl = null;
+        try {
+          embedUrl = Buffer.from(dataHash, 'base64').toString('utf-8');
+        } catch (e) {
+          console.error('Failed to decode data-hash:', e.message);
         }
-      });
-    }
+        
+        servers.push({
+          index: i + 1,
+          type: serverType,
+          name: serverName,
+          embedUrl,
+          hash: dataHash,
+        });
+      }
+    });
+    
     return servers;
   };
 
-  const sub = extractList('.ps__-list.server-items[data-id="sub"], .servers-sub .ps__-list', 'sub');
-  const dub = extractList('.ps__-list.server-items[data-id="dub"], .servers-dub .ps__-list', 'dub');
-  const raw = extractList('.ps__-list.server-items[data-id="raw"], .servers-raw .ps__-list', 'raw');
-
-  // Fallback: parse any .ps__-list with data-id attribute
-  let finalSub = sub, finalDub = dub;
-  if (sub.length === 0 && dub.length === 0) {
-    $('.ps__-list.server-items').each((_, el) => {
-      const t = $(el).attr('data-id')?.toLowerCase() || 'sub';
-      const list = [];
-      $(el).find('[data-video]').each((i, item) => {
-        const videoUrl = $(item).attr('data-video') || '';
-        const name = $(item).text().trim() || `HD-${i + 1}`;
-        list.push({ index: i + 1, type: t, name, embedUrl: videoUrl, subtitle: null });
-      });
-      if (t === 'sub') finalSub = list;
-      else if (t === 'dub') finalDub = list;
-    });
-  }
+  const sub = extractList('.servers-sub .ps__-list', 'sub');
+  const dub = extractList('.servers-dub .ps__-list', 'dub');
+  const raw = extractList('.servers-raw .ps__-list', 'raw');
 
   return {
     episode: Number(episode),
-    sub: finalSub,
-    dub: finalDub,
+    sub,
+    dub,
     raw,
   };
 };

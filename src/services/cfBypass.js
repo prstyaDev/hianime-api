@@ -271,8 +271,19 @@ export async function resolveEmbedStream(embedUrl) {
       timeout: 10000,
     });
 
+    // Extract subtitle from HTML if present
+    let subtitle = null;
+    const subMatch = html.match(/track\s+kind=["']captions["']\s+src=["']([^"']+)["']/i) ||
+                    html.match(/subtitle["\s:]+["']([^"']+\.vtt[^"']*)["']/i) ||
+                    html.match(/"subtitle":"([^"]+)"/);
+    if (subMatch) subtitle = subMatch[1];
+
     const srcMatch = html.match(/const src\s*=\s*"(https?:\/\/[^"]+?\/master\.m3u8[^"]*)"/);
-    if (srcMatch) return parseMasterM3u8(srcMatch[1], embedUrl);
+    if (srcMatch) {
+      const result = await parseMasterM3u8(srcMatch[1], embedUrl);
+      if (subtitle && !result.subtitle) result.subtitle = subtitle;
+      return result;
+    }
 
     const unpacked = unpackPackedScript(html);
     if (unpacked) {
@@ -282,12 +293,26 @@ export async function resolveEmbedStream(embedUrl) {
       if (streamUrl) {
         const domain = new URL(embedUrl).hostname;
         const full = streamUrl.startsWith('/') ? `https://${domain}${streamUrl}` : streamUrl;
-        return parseMasterM3u8(full, embedUrl);
+        const result = await parseMasterM3u8(full, embedUrl);
+        if (subtitle && !result.subtitle) result.subtitle = subtitle;
+        return result;
       }
     }
   } catch {}
 
-  return { embed_url: embedUrl, master_m3u8: null, subtitle: null, variants: [], note: 'Could not resolve stream' };
+  const embedOrigin = embedUrl ? new URL(embedUrl).origin : config.baseurl;
+  return { 
+    embed_url: embedUrl, 
+    master_m3u8: null, 
+    subtitle: null, 
+    variants: [], 
+    note: 'Could not resolve stream',
+    headers: {
+      'Referer': embedOrigin,
+      'User-Agent': CF_UA,
+      'Origin': embedOrigin
+    }
+  };
 }
 
 function unpackPackedScript(html) {
@@ -335,6 +360,7 @@ async function parseMasterM3u8(masterUrl, embedUrl) {
     timeout: 10000,
   });
   const base = masterUrl.substring(0, masterUrl.lastIndexOf('/') + 1);
+  const embedOrigin = new URL(embedUrl).origin;
   const variants = [];
   const lines = m3u8.split('\n');
   for (let i = 0; i < lines.length; i++) {
@@ -348,5 +374,21 @@ async function parseMasterM3u8(masterUrl, embedUrl) {
     }
   }
   variants.sort((a, b) => b.bandwidth_kbps - a.bandwidth_kbps);
-  return { master_m3u8: masterUrl, subtitle: null, variants };
+  
+  // Return with required headers for ExoPlayer
+  return { 
+    master_m3u8: masterUrl, 
+    subtitle: null, 
+    variants,
+    headers: {
+      'Referer': embedOrigin,
+      'User-Agent': CF_UA,
+      'Origin': embedOrigin,
+      'Accept': '*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Sec-Fetch-Dest': 'empty',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Site': 'cross-site'
+    }
+  };
 }

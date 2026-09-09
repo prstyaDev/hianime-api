@@ -1,0 +1,74 @@
+{
+  "endpoint": "/api/v1/stream",
+  "tested_with": {
+    "anime": "Mushoku Tensei: Jobless Reincarnation Season 3",
+    "episode_id": "178650",
+    "full_id": "mushoku-tensei-jobless-reincarnation-season-3-9142::ep=178650",
+    "url_reference": "https://hianime.dk/watch/mushoku-tensei-jobless-reincarnation-season-3-9142?ep=178650"
+  },
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:3000/api/v1/stream",
+    "query_parameters": {
+      "id": "mushoku-tensei-jobless-reincarnation-season-3-9142::ep=178650",
+      "server": "HD-1",
+      "type": "sub"
+    }
+  },
+  "response": {
+    "success": true,
+    "data": {
+      "episode_id": "mushoku-tensei-jobless-reincarnation-season-3-9142::ep=178650",
+      "type": "sub",
+      "server": "HD-1",
+      "stream": {
+        "streaming_link": "https://megaplay.buzz/stream/s-2/976085/sub",
+        "master_m3u8": "https://megaplay.buzz/stream/s-2/976085/sub",
+        "variants": [],
+        "headers": {
+          "Referer": "https://megaplay.buzz/",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Origin": "https://megaplay.buzz",
+          "Accept": "*/*",
+          "Accept-Language": "en-US,en;q=0.9"
+        }
+      },
+      "subtitle": null,
+      "embed_url": "https://megaplay.buzz/stream/s-2/976085/sub",
+      "note": "Direct stream link - may require iframe embedding or JavaScript execution to extract final HLS URL"
+    }
+  },
+  "usage_in_exoplayer_kotlin": {
+    "step_1": "Fetch stream data from API",
+    "step_2": "Extract stream URL: response.data.stream.master_m3u8",
+    "step_3": "Extract headers: response.data.stream.headers",
+    "step_4": "Setup DefaultHttpDataSource.Factory() with headers",
+    "step_5": "Create MediaItem with stream URL",
+    "step_6": "Initialize ExoPlayer with MediaSourceFactory",
+    "example_code": "See STREAMING_API_DOCUMENTATION.md for complete Kotlin code"
+  },
+  "alternative_servers": [
+    {
+      "name": "HD-2",
+      "url_pattern": "https://megaplay.buzz/stream/s-2/976085/sub?s=tcdn",
+      "description": "Megaplay with tcdn parameter"
+    },
+    {
+      "name": "HD-3",
+      "url_pattern": "https://megaplay.buzz/stream/s-2/976085/sub?s=bcdn",
+      "description": "Megaplay with bcdn parameter"
+    },
+    {
+      "name": "HD-4",
+      "url_pattern": "https://vidtube.site/stream/[encoded]/sub",
+      "description": "Alternative provider (VidTube)"
+    }
+  ],
+  "important_notes": [
+    "Headers in response.data.stream.headers are REQUIRED for all streaming requests",
+    "Without proper headers, CDN will return 403/401 error",
+    "Megaplay URLs may need additional processing to extract final .m3u8",
+    "Try different servers (HD-1, HD-2, HD-3, HD-4) if one fails",
+    "Subtitle may be null - not all episodes have subtitles"
+  ]
+}
