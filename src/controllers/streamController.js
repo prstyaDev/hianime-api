@@ -24,31 +24,28 @@ const streamController = async (c) => {
     // Megaplay streams are direct links, return as streamingLink for now
     // ExoPlayer can handle these URLs directly with proper headers
     return {
-      success: true,
-      data: {
-        episode_id: id,
-        type,
-        server: selected.name,
+      episode_id: id,
+      type,
+      server: selected.name,
+      
+      stream: {
+        streaming_link: selected.embedUrl,
+        master_m3u8: selected.embedUrl, // Use embed URL as m3u8 source
+        variants: [],
         
-        stream: {
-          streaming_link: selected.embedUrl,
-          master_m3u8: selected.embedUrl, // Use embed URL as m3u8 source
-          variants: [],
-          
-          headers: {
-            'Referer': new URL(selected.embedUrl).origin + '/',
-            'User-Agent': UA,
-            'Origin': new URL(selected.embedUrl).origin,
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.9'
-          }
-        },
-        
-        subtitle: null,
-        embed_url: selected.embedUrl,
-        
-        note: 'Direct stream link - may require iframe embedding or JavaScript execution to extract final HLS URL'
-      }
+        headers: {
+          'Referer': new URL(selected.embedUrl).origin + '/',
+          'User-Agent': UA,
+          'Origin': new URL(selected.embedUrl).origin,
+          'Accept': '*/*',
+          'Accept-Language': 'en-US,en;q=0.9'
+        }
+      },
+      
+      subtitle: null,
+      embed_url: selected.embedUrl,
+      
+      note: 'Direct stream link - may require iframe embedding or JavaScript execution to extract final HLS URL'
     };
   }
 
@@ -58,33 +55,30 @@ const streamController = async (c) => {
     
     // Format response for ExoPlayer Android
     return {
-      success: true,
-      data: {
-        episode_id: id,
-        type,
-        server: selected.name,
+      episode_id: id,
+      type,
+      server: selected.name,
+      
+      // Streaming info
+      stream: {
+        master_m3u8: stream.master_m3u8,
+        variants: stream.variants || [],
         
-        // Streaming info
-        stream: {
-          master_m3u8: stream.master_m3u8,
-          variants: stream.variants || [],
-          
-          // Required headers for ExoPlayer
-          headers: stream.headers || {
-            'Referer': selected.embedUrl ? new URL(selected.embedUrl).origin : 'https://hianime.dk',
-            'User-Agent': UA,
-            'Origin': selected.embedUrl ? new URL(selected.embedUrl).origin : 'https://hianime.dk',
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.9'
-          }
-        },
-        
-        // Subtitle info
-        subtitle: selected.subtitle || stream.subtitle || null,
-        
-        // Additional info
-        embed_url: selected.embedUrl,
-      }
+        // Required headers for ExoPlayer
+        headers: stream.headers || {
+          'Referer': selected.embedUrl ? new URL(selected.embedUrl).origin : 'https://hianime.dk',
+          'User-Agent': UA,
+          'Origin': selected.embedUrl ? new URL(selected.embedUrl).origin : 'https://hianime.dk',
+          'Accept': '*/*',
+          'Accept-Language': 'en-US,en;q=0.9'
+        }
+      },
+      
+      // Subtitle info
+      subtitle: selected.subtitle || stream.subtitle || null,
+      
+      // Additional info
+      embed_url: selected.embedUrl,
     };
   }
 
