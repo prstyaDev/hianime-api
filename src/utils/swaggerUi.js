@@ -3,9 +3,9 @@ import config from '../config/config.js';
 const hianimeApiDocs = {
   openapi: '3.0.0',
   info: {
-    title: 'hianime-api',
+    title: 'wibufy-api',
     version: '2.0.0',
-    description: 'API Documentation For HiAnime Content Endpoints',
+    description: 'API Documentation For Wibufy Content Endpoints',
   },
   servers: [
     {
