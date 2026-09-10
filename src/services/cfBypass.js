@@ -98,7 +98,7 @@ async function getBrowser() {
     try { await browser.version(); return browser; } catch { browser = null; }
   }
 
-  const { existsSync } = await import('fs');
+  const { existsSync } = await import('node:fs');
   const chromePaths = [
     '/usr/bin/google-chrome',
     '/usr/bin/chromium-browser',
